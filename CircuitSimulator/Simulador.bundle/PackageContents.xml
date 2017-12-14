@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage SchemaVersion="1.0" AutodeskProduct="AutoCAD" Name="C-Simule" 
+					Description="Simulador de circuitos electronicos." AppVersion="1.0.0" 
+					ProductType="Application" SupportedLocales="Enu" 
+					AppNameSpace="appstore.exchange.autodesk.com" 
+					Author="Equipo 2-3" 
+					Icon ="./Contents/Help/Resources/App.jpg"
+					HelpFile ="./Contents/Help/Manual.chm"
+					OnlineDocumentation="http://www.autodesk.com"
+					ProductCode="{AD35AD6C-33E3-437B-B6CB-A9527ACD5FDA}"
+					UpgradeCode="{A990C3F7-161C-4B17-8DA8-51E75642F163}">
+  <CompanyDetails Name="Esquilax" Email="j.rivera.lona@gmail.com" 
+			      Phone="54284592" Url="http://dasoft.com.mx"/>
+  <Components Description="CUIx">
+    <RuntimeRequirements OS="Win32|Win64" Platform="AutoCAD*" SeriesMin="R19.0" SeriesMax="R20.0" />
+    <ComponentEntry AppName="C-Simule" Version="1.0.0" ModuleName="./Contents/Resources/C-Simule.cuix" AppDescription="Application CUIx" LoadOnAutoCADStartup="True" />
+  </Components>
+  <Components Description="DLLs">
+    <RuntimeRequirements OS="Win32|Win64" Platform="AutoCAD*" SeriesMin="R19.0" SeriesMax="R20.0" />
+    <ComponentEntry AppName="C-Simule" Version="1.0.0" ModuleName="./Contents/x86/CircuitSimulator.dll" AppDescription="Main DLL" LoadOnAutoCADStartup="True">
+    </ComponentEntry>
+  </Components>
+</ApplicationPackage>

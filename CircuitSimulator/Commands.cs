@@ -63,6 +63,7 @@ namespace CircuitSimulator
         /// Las compuertas insertadas en el plano
         /// </summary>
         public static Dictionary<Handle, Compuerta> Compuertas;
+        public static Dictionary<Handle, Input> Entradas;
         /// <summary>
         /// Define un comando que prueba la inserción de la compuerta AND
         /// </summary>
@@ -144,7 +145,7 @@ namespace CircuitSimulator
             }
         }
         /// <summary>
-        /// Define un comando que prueba la inserción de la compuerta XOR
+        /// Define un comando que prueba la inserción de la compuerta XNOR
         /// </summary>
         [CommandMethod("InsertXNOR")]
         public void InsertXNOR()
@@ -176,43 +177,59 @@ namespace CircuitSimulator
             }
         }
         /// <summary>
-        /// Define un comando para la inserción de un pulso de tamaño y valor true (Vcc)
+        /// Define un comando para la inserción de un pulso de tamaño 1 y valor true (Vcc)
         /// </summary>
         [CommandMethod("DibujaVcc")]
         public void InsertVcc()
         {
+            if (Entradas == null)
+                Entradas = new Dictionary<Handle, Input>();
             Point3d insPt;
             if (Selector.Point("Selecciona el punto de inserción de Vcc", out insPt))
             {
                 TransactionWrapper tr = new TransactionWrapper();
-                tr.Run(InsertEntradaTask, new Vcc(), insPt);
+                var inp = tr.Run(InsertEntradaTask, new Vcc(), insPt) as Input;
+                Entradas.Add(inp.Id, inp);
             }
         }
         /// <summary>
-        /// Define un comando para la inserción de un pulso de tamaño y valor true (Vcc)
+        /// Define un comando para la inserción de un pulso de tamaño 1 y valor false (Gnd)
         /// </summary>
         [CommandMethod("DibujaGnd")]
         public void InsertGnd()
         {
+            if (Entradas == null)
+                Entradas = new Dictionary<Handle, Input>();
             Point3d insPt;
             if (Selector.Point("Selecciona el punto de inserción de GND", out insPt))
             {
                 TransactionWrapper tr = new TransactionWrapper();
-                tr.Run(InsertEntradaTask, new Gnd(), insPt);
+                var inp = tr.Run(InsertEntradaTask, new Gnd(), insPt) as Input;
+                Entradas.Add(inp.Id, inp);
             }
         }
 
         [CommandMethod("DibujaSalida")]
         public void InsertSalida()
         {
+            if (Compuertas == null)
+                Compuertas = new Dictionary<Handle, Compuerta>();
             Point3d insPt;
             if (Selector.Point("Selecciona el punto de inserción de la salida", out insPt))
             {
                 TransactionWrapper tr = new TransactionWrapper();
-                tr.Run(InsertCompuertaTask, new Output(), insPt);
+                var cmp = tr.Run(InsertCompuertaTask, new Output(), insPt) as Compuerta;
+                Compuertas.Add(cmp.Id, cmp);
             }
         }
 
+        /// <summary>
+        /// Define la transacción que inserta un bloque de Vcc o Gnd
+        /// </summary>
+        /// <param name="doc">El documento activo.</param>
+        /// <param name="tr">La transacción activa.</param>
+        /// <param name="input">La entrada de la transacción.</param>
+        /// <returns>La compuerta insertada</returns>
         private object InsertEntradaTask(Document doc, Transaction tr, object[] input)
         {
             Input cmp = (Input)input[0];
@@ -462,6 +479,15 @@ namespace CircuitSimulator
                             case "NOT":
                                 Compuertas.Add(obj.Handle, new NOT() { Block = block });
                                 break;
+                            case "GND":
+                                Entradas.Add(obj.Handle, new Gnd() { Block = block });
+                                break;
+                            case "VCC":
+                                Entradas.Add(obj.Handle, new Vcc() { Block = block });
+                                break;
+                            case "OUTPUT":
+                                Compuertas.Add(obj.Handle, new Output() { Block = block });
+                                break;
                         }
                     }
                 }
@@ -510,10 +536,9 @@ namespace CircuitSimulator
                 Compuerta cmp = Commands.Compuertas.FirstOrDefault(x => x.Value.Block.ObjectId == outId).Value;
                 cmp.InitBox(cmp.Name);
                 ObjectId cableAId = cmp.Search("INPUTA").OfType<ObjectId>().FirstOrDefault(),
-                         cableBId = cmp.Search("INPUTB").OfType<ObjectId>().FirstOrDefault(),
-                         outputId = cmp.Search("OUTPUT").OfType<ObjectId>().FirstOrDefault();
+                         cableBId = cmp.Search("INPUTB").OfType<ObjectId>().FirstOrDefault();
                 TransactionWrapper tr = new TransactionWrapper();
-                tr.Run(ConnectionTask, cmp, cableAId, cableBId, outputId, pt1, inpId);
+                tr.Run(ConnectionTask, cmp, cableAId, cableBId, pt1, inpId);
             }
         }
 
@@ -523,16 +548,128 @@ namespace CircuitSimulator
             Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
             ObjectId inpId, outId;
             Point3d pt1, pt2;
-            if (Selector.Entity("\nSelecciona VCC, GND o la salida de compuerta", out inpId, out pt1) &&
+            if (Selector.Entity("\nSelecciona la salida de compuerta", out inpId, out pt1) &&
                 Selector.Entity("\nSelecciona la entrada de conexión", out outId, out pt2))
             {
                 Compuerta cmp = Commands.Compuertas.FirstOrDefault(x => x.Value.Block.ObjectId == outId).Value;
+                Compuerta cmpFrom = Commands.Compuertas.FirstOrDefault(x => x.Value.Block.ObjectId == inpId).Value;
                 cmp.InitBox(cmp.Name);
+                cmpFrom.InitBox(cmpFrom.Name);
                 ObjectId cableAId = cmp.Search("INPUTA").OfType<ObjectId>().FirstOrDefault(),
-                            cableBId = cmp.Search("INPUTB").OfType<ObjectId>().FirstOrDefault();
+                         cableBId = cmp.Search("INPUTB").OfType<ObjectId>().FirstOrDefault(),
+                         outputId = cmpFrom.Search("OUTPUT").OfType<ObjectId>().FirstOrDefault();
                 TransactionWrapper tr = new TransactionWrapper();
-                tr.Run(TestConnectionTask, cmp, cableAId, cableBId);
+                tr.Run(ConnectionTask2, cmp, cmpFrom, pt1, pt2, cableAId, cableBId, outputId);
             }
+        }
+        [CommandMethod("ConexionFC")]
+        public void ConnectFC()
+        {
+            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
+            ObjectId inpId, outId;
+            Point3d pt1, pt2;
+            if (Selector.Entity("\nSelecciona VCC o GND ", out inpId, out pt1) &&
+                Selector.Entity("\nSelecciona la entrada de conexión", out outId, out pt2))
+            {
+                Compuerta cmp = Compuertas.FirstOrDefault(x => x.Value.Block.ObjectId == outId).Value;
+                Input inpB = Entradas.FirstOrDefault(x => x.Value.Block.ObjectId == inpId).Value;
+                cmp.InitBox(cmp.Name);
+                inpB.InitBox(inpB.Name);
+                ObjectId cableAId = cmp.Search("INPUTA").OfType<ObjectId>().FirstOrDefault(),
+                         cableBId = cmp.Search("INPUTB").OfType<ObjectId>().FirstOrDefault(),
+                         outputId = inpB.Search("OUTPUT").OfType<ObjectId>().FirstOrDefault();
+                TransactionWrapper tr = new TransactionWrapper();
+                tr.Run(ConnectionTask3, cmp, inpB, pt1, pt2, cableAId, cableBId, outputId);
+            }
+        }
+
+        private object ConnectionTask2(Document doc, Transaction tr, object[] input)
+        {
+            Compuerta cmp = (Compuerta)input[0], cmpFrom = (Compuerta)input[1];
+            cmp.InitBox(cmp.Name);
+            cmpFrom.InitBox(cmpFrom.Name);
+            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
+            Point3d pt1 = (Point3d)input[3], pt2 = (Point3d)input[2];
+            String zoneA;
+            Point3dCollection zone;
+            cmp.GetZone(pt1, out zoneA, out zone);
+            if (((ObjectId)input[6]).IsNull)
+            {
+                switch (zoneA)
+                {
+                    case "INPUTA":
+                        if (((ObjectId)input[4]).IsNull)
+                        {
+                            Drawer d = new Drawer(tr);
+                            Line lA = new Line(cmpFrom.ConnectionPoints["OUTPUT"], cmp.ConnectionPoints[zoneA]);
+                            d.Entity(lA);
+                        }
+                        else
+                            ed.WriteMessage("Ya existe un elemento conectado a esta entrada");
+                        break;
+                    case "INPUTB":
+                        if (((ObjectId)input[5]).IsNull)
+                        {
+                            Drawer d = new Drawer(tr);
+                            Line lA = new Line(cmpFrom.ConnectionPoints["OUTPUT"], cmp.ConnectionPoints[zoneA]);
+                            d.Entity(lA);
+                        }
+                        else
+                            ed.WriteMessage("Ya existe un elemento conectado a esta entrada");
+                        break;
+                    case "OUTPUT":
+                        ed.WriteMessage("Imposible conectar con una salida");
+                        break;
+                }
+            }
+            else
+                ed.WriteMessage("Imposible conectar, prueba de nuevo");
+            return null;
+        }
+
+        private object ConnectionTask3(Document doc, Transaction tr, object[] input)
+        {
+            Compuerta cmp = (Compuerta)input[0];
+            Input cmpFrom = (Input)input[1];
+            cmp.InitBox(cmp.Name);
+            cmpFrom.InitBox(cmpFrom.Name);
+            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
+            Point3d pt1 = (Point3d)input[3], pt2 = (Point3d)input[2];
+            String zoneA;
+            Point3dCollection zone;
+            cmp.GetZone(pt1, out zoneA, out zone);
+            if (((ObjectId)input[6]).IsNull)
+            {
+                switch (zoneA)
+                {
+                    case "INPUTA":
+                        if (((ObjectId)input[4]).IsNull)
+                        {
+                            Drawer d = new Drawer(tr);
+                            Line lA = new Line(cmpFrom.ConnectionPoints["OUTPUT"], cmp.ConnectionPoints[zoneA]);
+                            d.Entity(lA);
+                        }
+                        else
+                            ed.WriteMessage("Ya existe un elemento conectado a esta entrada");
+                        break;
+                    case "INPUTB":
+                        if (((ObjectId)input[5]).IsNull)
+                        {
+                            Drawer d = new Drawer(tr);
+                            Line lA = new Line(cmpFrom.ConnectionPoints["OUTPUT"], cmp.ConnectionPoints[zoneA]);
+                            d.Entity(lA);
+                        }
+                        else
+                            ed.WriteMessage("Ya existe un elemento conectado a esta entrada");
+                        break;
+                    case "OUTPUT":
+                        ed.WriteMessage("Imposible conectar con una salida");
+                        break;
+                }
+            }
+            else
+                ed.WriteMessage("Imposible conectar, prueba de nuevo");
+            return null;
         }
 
         private object ConnectionTask(Document doc, Transaction tr, object[] input)
@@ -540,8 +677,8 @@ namespace CircuitSimulator
             Compuerta cmp = (Compuerta)input[0];
             cmp.InitBox(cmp.Name);
             Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
-            Polyline p1 = ((ObjectId)input[5]).GetObject(OpenMode.ForRead) as Polyline;
-            Point3d pt1 = (Point3d)input[4];
+            Polyline p1 = ((ObjectId)input[4]).GetObject(OpenMode.ForRead) as Polyline;
+            Point3d pt1 = (Point3d)input[3];
             String zoneA;
             Point3dCollection zone;
             cmp.GetZone(pt1, out zoneA, out zone);
@@ -574,6 +711,24 @@ namespace CircuitSimulator
             return null;
         }
 
+        [CommandMethod("Calcular")]
+        public void StartCalculo()
+        {
+            TransactionWrapper trW = new TransactionWrapper();
+            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
+            Object acadObj = Application.AcadApplication;
+            acadObj.GetType().InvokeMember("ZoomExtents", System.Reflection.BindingFlags.InvokeMethod, null, acadObj, null);
+            Compuerta cmpFrom = Commands.Compuertas.FirstOrDefault(x => x.Value.Block.Name == "OUTPUT").Value;
+            if (cmpFrom != null)
+            {
+                
+            }
+            else
+                ed.WriteMessage("No se encontro un Objeto de pulso salida");
+            acadObj.GetType().InvokeMember("ZoomPrevious", System.Reflection.BindingFlags.InvokeMethod, null, acadObj, null);
+
+        }
+        
         /// <summary>
         /// Tests the connection task.
         /// </summary>
@@ -605,9 +760,9 @@ namespace CircuitSimulator
                             bool[] result = cmp.Solve(
                                 new InputValue[]
                                 {
-                            new InputValue() { Name = "INPUTA", Value = inputA },
-                            new InputValue() { Name = "INPUTB", Value = inputB }
-                                });
+                                    new InputValue() { Name = "INPUTA", Value = inputA },
+                                    new InputValue() { Name = "INPUTB", Value = inputB }
+                            });
                             Drawer d = new Drawer(tr);
                             Pulso output = new Pulso(cmp.ConnectionPoints["OUTPUT"], result);
                             output.Draw(d);

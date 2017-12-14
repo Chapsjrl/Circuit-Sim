@@ -17,6 +17,13 @@ namespace CircuitSimulator.Model
         public Output()
             : base("OUTPUT", 1)
         {
+            char letraInp = 'A';
+            this.InputNames = new String[this.InputNumber + 1];
+            for (int i = 0; i < this.InputNumber; i++)
+            {
+                this.InputNames[i] = "INPUT" + letraInp;
+                letraInp++;
+            }
         }
         /// <summary>
         /// Resuelve la función de la compuerta

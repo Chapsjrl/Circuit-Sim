@@ -108,12 +108,15 @@ namespace CircuitSimulator.Model
                 this.Block.GeometricExtents.MaxPoint,
                 new Point3d(this.Block.GeometricExtents.MinPoint.X,this.Block.GeometricExtents.MaxPoint.Y,0),
             });
-            this.Zones.Add("OUTPUT", this.Box);
-            if (name == "VCC")
-                this.ConnectionPoints.Add("OUTPUT", this.Box[1]);
-            else
-                this.ConnectionPoints.Add("OUTPUT", this.Box[2]);
-            
+            if (Zones.Count == 0)
+            {
+                this.Zones.Add("OUTPUT", this.Box);
+                if (name == "VCC")
+                    this.ConnectionPoints.Add("OUTPUT", this.Box[1]);
+                else
+                    this.ConnectionPoints.Add("OUTPUT", this.Box[2]);
+            }
+
         }
 
         /// <summary>
